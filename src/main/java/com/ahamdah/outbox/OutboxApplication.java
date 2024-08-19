@@ -15,8 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
+import java.util.Currency;
+import java.util.UUID;
 
 @SpringBootApplication
 @RestController
@@ -43,7 +45,14 @@ public class OutboxApplication implements CommandLineRunner {
 
         //===========================
         log.info("creating Transaction");
-        var transaction=transactionRepository.save(Transaction.builder().amount(BigDecimal.valueOf(Math.random()*100)).build());
+
+        Currency currency=Currency.getInstance("JOD");
+        var transaction=transactionRepository.save(
+                Transaction.
+                        builder()
+                        .amount(BigInteger.valueOf((int)(Math.random()*100)))
+                        .currencyCode(currency.getCurrencyCode())
+                        .build());
 
         //===========================
         log.info("creating Transaction Event");
@@ -51,7 +60,7 @@ public class OutboxApplication implements CommandLineRunner {
                 TransactionOutboxEvent.builder()
                         .payload(transaction.toString())
                         .eventType("pending")
-                        .aggregateId(transaction.getId().toString())
+                        .aggregateId("2")
                 .build());
         log.info("Event created{}", event);
         return transaction;
@@ -70,11 +79,13 @@ public class OutboxApplication implements CommandLineRunner {
 @EntityListeners(AuditingEntityListener.class)
 class Transaction {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id", nullable = false)
-    private Long id;
+    private UUID id;
 
-    private BigDecimal amount;
+    private BigInteger amount;
+
+    private String currencyCode;
 
     @CreatedDate
     LocalDate createdDate;
@@ -96,10 +107,11 @@ class Transaction {
 @EntityListeners(AuditingEntityListener.class)
 class TransactionOutboxEvent{
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Column(name = "id", nullable = false)
-    private Long id;
+    private UUID id;
 
+    //Use to Indicate the partition we can use the user id(All user Transaction will be in Ordered) or account id
     @Column(name = "aggregate_id")
     private String aggregateId;
 
@@ -113,5 +125,5 @@ class TransactionOutboxEvent{
 
 }
 
-interface TransactionRepository extends JpaRepository<Transaction, Long> {}
-interface TransactionOutboxRepository extends JpaRepository<TransactionOutboxEvent, Long> {}
+interface TransactionRepository extends JpaRepository<Transaction, UUID> {}
+interface TransactionOutboxRepository extends JpaRepository<TransactionOutboxEvent, UUID> {}
