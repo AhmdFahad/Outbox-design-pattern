@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigInteger;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Currency;
+import java.util.List;
 import java.util.UUID;
 
 @SpringBootApplication
@@ -38,10 +40,11 @@ public class OutboxApplication implements CommandLineRunner {
     public String hello(){
         return "Hello World";
     }
+    private final List<String> event_type= Arrays.asList("deposit","withdraw","transfer");
 
     @GetMapping("/create")
     @Transactional
-    public Transaction hello(HttpServletResponse response){
+    public Transaction createTransaction(){
 
         //===========================
         log.info("creating Transaction");
@@ -59,8 +62,9 @@ public class OutboxApplication implements CommandLineRunner {
         var event=transactionOutboxRepository.save(
                 TransactionOutboxEvent.builder()
                         .payload(transaction.toString())
-                        .eventType("pending")
-                        .aggregateId("2")
+                        .eventType("deposit")
+                        .aggregateId("1")
+                        .status(EventStatus.PENDING)
                 .build());
         log.info("Event created{}", event);
         return transaction;
@@ -120,9 +124,17 @@ class TransactionOutboxEvent{
     @Column(name = "event_type")
     private String eventType;
 
+    @Column(name = "status")
+    @Enumerated(EnumType.STRING)
+    private EventStatus status;
+
     @CreatedDate
     LocalDate createdDate;
 
+}
+
+enum EventStatus{
+    PENDING,PROCESSED,FAILED
 }
 
 interface TransactionRepository extends JpaRepository<Transaction, UUID> {}
